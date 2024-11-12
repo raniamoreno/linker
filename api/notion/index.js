@@ -8,48 +8,85 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,POST');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  // Handle OPTIONS request
   if (req.method === 'OPTIONS') {
     res.status(200).end();
     return;
   }
 
-  // Validate request method
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
-    // Log environment variables (excluding sensitive values)
-    console.log('Environment check:', {
-      hasToken: !!process.env.NOTION_TOKEN,
-      hasDbId: !!process.env.REACT_APP_NOTION_DATABASE_ID,
-      nodeEnv: process.env.NODE_ENV
-    });
-
-    // Initialize Notion client
     const notion = new Client({
-      auth: process.env.NOTION_TOKEN || process.env.REACT_APP_NOTION_TOKEN
+      auth: process.env.NOTION_TOKEN
     });
 
     const databaseId = req.query.databaseId;
+    console.log('Fetching database:', databaseId);
 
-    if (!databaseId) {
-      return res.status(400).json({ error: 'Database ID is required' });
-    }
-
-    // Fetch database pages
-    const response = await notion.databases.query({
+    // Get all pages from database
+    const pages = await notion.databases.query({
       database_id: databaseId,
-      page_size: 100,
+      page_size: 100
     });
 
-    res.status(200).json({ results: response.results });
+    // Process each page to get title and content
+    const pagesWithLinks = await Promise.all(pages.results.map(async (page) => {
+      // Get page title
+      let title = 'Untitled';
+      for (const [key, value] of Object.entries(page.properties)) {
+        if (value.type === 'title' && value.title?.[0]?.plain_text) {
+          title = value.title[0].plain_text;
+          break;
+        }
+      }
+
+      // Get page content (blocks)
+      const blocks = await notion.blocks.children.list({
+        block_id: page.id,
+        page_size: 100
+      });
+
+      // Find links in blocks
+      const links = blocks.results
+        .filter(block =>
+          block.type === 'link_to_page' ||
+          (block.type === 'link_preview' && block.link_preview?.url?.includes('notion.so'))
+        )
+        .map(block => {
+          if (block.type === 'link_to_page') {
+            return block.link_to_page?.page_id;
+          } else {
+            const match = block.link_preview.url.match(/([a-f0-9]{32})/);
+            return match ? match[1] : null;
+          }
+        })
+        .filter(Boolean);
+
+      return {
+        id: page.id,
+        title,
+        links: [...new Set(links)] // Remove duplicates
+      };
+    }));
+
+    // Calculate backlinks
+    const results = pagesWithLinks.map(page => ({
+      ...page,
+      backlinks: pagesWithLinks
+        .filter(p => p.links.includes(page.id))
+        .map(p => p.id)
+    }));
+
+    console.log('API Response:', {
+      pageCount: results.length,
+      samplePage: results[0]
+    });
+
+    res.status(200).json({ results });
   } catch (error) {
     console.error('API Error:', error);
-    res.status(500).json({
-      error: error.message,
-      details: process.env.NODE_ENV === 'development' ? error : undefined
-    });
+    res.status(500).json({ error: error.message });
   }
 }

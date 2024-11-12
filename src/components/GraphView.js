@@ -15,7 +15,7 @@ import { fetchLinksAndBacklinks } from '../utils/notionApi';
 function GraphView({ databaseId }) {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
-  const [selectedNode, setSelectedNode] = useState(null);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -23,39 +23,44 @@ function GraphView({ databaseId }) {
         const data = await fetchLinksAndBacklinks(databaseId);
         console.log('Fetched data:', data);
 
+        if (!data.results || !Array.isArray(data.results)) {
+          throw new Error('Invalid data format received from API');
+        }
+
         // Create nodes with circle layout
-        const radius = 500; // Increased radius for better spacing
+        const nodeRadius = Math.min(window.innerWidth, window.innerHeight) * 0.4;
         const centerX = window.innerWidth / 2;
         const centerY = window.innerHeight / 2;
-        const angle = (2 * Math.PI) / data.results.length;
 
-        const nodes = data.results.map((page, index) => ({
-          id: page.id,
-          type: 'default',
-          data: {
-            label: `${page.title}\n(out: ${page.links.length}, in: ${page.backlinks.length})`,
-            outgoingLinks: page.links.length,
-            incomingLinks: page.backlinks.length
-          },
-          position: {
-            x: centerX + radius * Math.cos(index * angle),
-            y: centerY + radius * Math.sin(index * angle)
-          },
-          style: {
-            background: '#fff',
-            border: '1px solid #999',
-            borderRadius: '8px',
-            padding: '10px',
-            fontSize: '12px',
-            width: 'auto',
-            minWidth: '150px',
-            textAlign: 'center',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-            whiteSpace: 'pre-wrap'
-          }
-        }));
+        const nodes = data.results.map((page, index) => {
+          const angle = (index / data.results.length) * 2 * Math.PI;
+          return {
+            id: page.id,
+            type: 'default',
+            data: {
+              label: `${page.title}\n(out: ${page.links.length}, in: ${page.backlinks.length})`,
+              outgoingLinks: page.links.length,
+              incomingLinks: page.backlinks.length
+            },
+            position: {
+              x: centerX + nodeRadius * Math.cos(angle),
+              y: centerY + nodeRadius * Math.sin(angle)
+            },
+            style: {
+              background: '#fff',
+              border: '1px solid #999',
+              borderRadius: '8px',
+              padding: '10px',
+              fontSize: '12px',
+              width: 'auto',
+              minWidth: '150px',
+              textAlign: 'center',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+            }
+          };
+        });
 
-        // Create edges with arrows and labels
+        // Create edges
         const edges = [];
         data.results.forEach(page => {
           page.links.forEach(targetId => {
@@ -65,13 +70,11 @@ function GraphView({ databaseId }) {
               target: targetId,
               type: 'smoothstep',
               animated: true,
-              label: 'links to',
-              labelStyle: { fill: '#666', fontSize: 12 },
               markerEnd: {
                 type: MarkerType.ArrowClosed,
                 width: 20,
                 height: 20,
-                color: '#555',
+                color: '#555'
               },
               style: {
                 stroke: '#555',
@@ -81,44 +84,47 @@ function GraphView({ databaseId }) {
           });
         });
 
-        console.log('Created nodes:', nodes);
-        console.log('Created edges:', edges);
+        console.log('Setting nodes:', nodes.length);
+        console.log('Setting edges:', edges.length);
 
         setNodes(nodes);
         setEdges(edges);
       } catch (error) {
-        console.error('Error fetching data:', error);
+        console.error('Error in GraphView:', error);
+        setError(error.message);
       }
     };
 
     if (databaseId) {
       fetchData();
     }
-  }, [databaseId]);
+  }, [databaseId, setNodes, setEdges]);
 
-  const onConnect = useCallback(
-    (params) => {
-      setEdges((eds) => addEdge({
-        ...params,
-        type: 'smoothstep',
-        animated: true,
-        markerEnd: {
-          type: MarkerType.ArrowClosed,
-        },
-      }, eds));
-    },
-    [setEdges]
-  );
+  const onConnect = useCallback((params) => {
+    setEdges(eds => addEdge({
+      ...params,
+      type: 'smoothstep',
+      animated: true,
+      markerEnd: {
+        type: MarkerType.ArrowClosed
+      }
+    }, eds));
+  }, [setEdges]);
 
-  const onNodeClick = useCallback((event, node) => {
-    console.log('Clicked node:', node);
-    setSelectedNode(node);
-    // Open Notion page in new tab
-    window.open(`https://notion.so/${node.id}`, '_blank');
-  }, []);
+  if (error) {
+    return (
+      <div style={{
+        padding: '20px',
+        color: 'red',
+        textAlign: 'center'
+      }}>
+        Error: {error}
+      </div>
+    );
+  }
 
   return (
-    <div style={{ width: '100%', height: '80vh', position: 'relative' }}>
+    <div style={{ width: '100vw', height: '100vh' }}>
       <ReactFlowProvider>
         <ReactFlow
           nodes={nodes}
@@ -126,10 +132,6 @@ function GraphView({ databaseId }) {
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
-          onNodeClick={onNodeClick}
-          nodesDraggable={true}
-          nodesConnectable={false}
-          elementsSelectable={true}
           fitView
           minZoom={0.1}
           maxZoom={1.5}
@@ -137,8 +139,8 @@ function GraphView({ databaseId }) {
             type: 'smoothstep',
             animated: true,
             markerEnd: {
-              type: MarkerType.ArrowClosed,
-            },
+              type: MarkerType.ArrowClosed
+            }
           }}
         >
           <Background color="#aaa" gap={16} />
@@ -150,23 +152,6 @@ function GraphView({ databaseId }) {
           />
         </ReactFlow>
       </ReactFlowProvider>
-
-      {selectedNode && (
-        <div style={{
-          position: 'absolute',
-          top: '10px',
-          right: '10px',
-          background: 'white',
-          padding: '15px',
-          borderRadius: '8px',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-          maxWidth: '300px'
-        }}>
-          <h3 style={{ margin: '0 0 10px 0' }}>{selectedNode.data.label.split('\n')[0]}</h3>
-          <p style={{ margin: '5px 0' }}>Outgoing links: {selectedNode.data.outgoingLinks}</p>
-          <p style={{ margin: '5px 0' }}>Incoming links: {selectedNode.data.incomingLinks}</p>
-        </div>
-      )}
     </div>
   );
 }
