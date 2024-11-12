@@ -14,14 +14,21 @@
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "/api/$1"
+      "dest": "/api/$1",
+      "headers": {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization"
+      }
     },
     {
       "src": "/(.*)",
-      "dest": "/index.html"
+      "dest": "/index.html",
+      "headers": {
+        "X-Frame-Options": "ALLOW-FROM https://www.notion.so/",
+        "Content-Security-Policy": "frame-ancestors 'self' https://www.notion.so/ https://notion.so/;",
+        "Access-Control-Allow-Origin": "*"
+      }
     }
-  ],
-  "env": {
-    "REACT_APP_API_URL": "/api/notion"
-  }
+  ]
 }
