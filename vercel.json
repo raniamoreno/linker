@@ -5,20 +5,17 @@
       "src": "package.json",
       "use": "@vercel/static-build",
       "config": { "distDir": "build" }
-    },
-    {
-      "src": "api/**/*.js",
-      "use": "@vercel/node"
     }
   ],
-  "rewrites": [
+  "routes": [
     {
-      "source": "/api/notion/:path*",
-      "destination": "/api/notion"
+      "src": "/api/notion",
+      "methods": ["POST", "OPTIONS"],
+      "dest": "/api/notion/index.js"
     },
     {
-      "source": "/(.*)",
-      "destination": "/index.html"
+      "src": "/(.*)",
+      "dest": "/index.html"
     }
   ]
 }
