@@ -25,10 +25,29 @@
       "src": "/(.*)",
       "dest": "/index.html",
       "headers": {
-        "X-Frame-Options": "ALLOW-FROM https://www.notion.so/",
-        "Content-Security-Policy": "frame-ancestors 'self' https://www.notion.so/ https://notion.so/;",
+        "X-Frame-Options": "ALLOWALL",
+        "Content-Security-Policy": "frame-ancestors 'self' https://*.notion.so https://*.vercel.app;",
         "Access-Control-Allow-Origin": "*"
       }
+    }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "ALLOWALL"
+        },
+        {
+          "key": "Content-Security-Policy",
+          "value": "frame-ancestors 'self' https://*.notion.so https://*.vercel.app;"
+        }
+      ]
     }
   ]
 }

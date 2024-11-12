@@ -10,10 +10,18 @@ const app = express();
 
 // Update CORS configuration
 app.use(cors({
-  origin: ['http://localhost:3000', 'https://linker-1lie5jjb7-as-projects-7a5e8de7.vercel.app', 'https://www.notion.so',  // Add Notion domain
-    'https://notion.so'],
+  origin: [
+    'http://localhost:3000',
+    'https://linker-1lie5jjb7-as-projects-7a5e8de7.vercel.app',
+    'https://linker-zeta-ivory.vercel.app',
+    'https://linker-git-main-as-projects-7a5e8de7.vercel.app',
+    'https://linker-eqm7rw61l-as-projects-7a5e8de7.vercel.app',
+    'https://www.notion.so',
+    'https://notion.so'
+  ],
   methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
 }));
 
 app.use(express.json());
