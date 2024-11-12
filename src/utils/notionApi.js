@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const apiClient = axios.create({
-  baseURL: 'http://localhost:3001/api/notion/',
+  baseURL: '/api/notion/',
   headers: {
     'Content-Type': 'application/json',
   },
