@@ -4,34 +4,38 @@ import fetch from 'node-fetch';
 const NOTION_API_BASE = 'https://api.notion.com/v1';
 
 export default async function handler(req, res) {
-  // Log incoming request
-  console.log('Request:', {
+  console.log('Request received:', {
     method: req.method,
     url: req.url,
-    query: req.query,
-    body: req.body
+    path: req.query
   });
 
-  // CORS Headers
+  // Add CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
-  // Handle OPTIONS preflight request
+  // Handle preflight
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
 
+  // Only allow POST
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Only POST requests are allowed' });
+  }
+
   try {
-    // Get database ID from the path
-    const urlParts = req.url.split('/');
-    const databaseId = urlParts[urlParts.indexOf('database') + 1];
-
-    console.log('Processing request for database:', databaseId);
-
+    const { databaseId } = req.query; // Get from query parameters
     const token = process.env.NOTION_TOKEN;
+
+    console.log('Processing request:', {
+      databaseId,
+      hasToken: !!token
+    });
+
     if (!token) {
-      throw new Error('Notion token not found in environment');
+      throw new Error('Notion token not found');
     }
 
     // Make request to Notion API
@@ -40,13 +44,11 @@ export default async function handler(req, res) {
       {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
           'Notion-Version': '2022-06-28',
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          page_size: 100
-        })
+        body: JSON.stringify({ page_size: 100 })
       }
     );
 
@@ -57,7 +59,6 @@ export default async function handler(req, res) {
       return res.status(notionResponse.status).json(data);
     }
 
-    // Process the response
     const pages = data.results.map(page => {
       let title;
       for (const [key, value] of Object.entries(page.properties)) {
@@ -74,7 +75,6 @@ export default async function handler(req, res) {
       };
     });
 
-    // Create the response
     const response = {
       results: pages.map(page => ({
         ...page,
@@ -82,17 +82,16 @@ export default async function handler(req, res) {
         backlinks: []
       })),
       debug: {
-        totalPages: pages.length
+        totalPages: pages.length,
+        databaseId
       }
     };
 
+    console.log('Sending response:', response);
     return res.status(200).json(response);
 
   } catch (error) {
     console.error('API error:', error);
-    return res.status(500).json({
-      error: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-    });
+    return res.status(500).json({ error: error.message });
   }
 }

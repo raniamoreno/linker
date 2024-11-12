@@ -1,8 +1,10 @@
 import axios from 'axios';
 
 const apiBaseUrl = process.env.NODE_ENV === 'production'
-  ? '' // Empty string for relative path in production
-  : 'http://localhost:3001';
+  ? '/api/notion'
+  : 'http://localhost:3001/api/notion';
+
+console.log('API Base URL:', apiBaseUrl);
 
 const apiClient = axios.create({
   baseURL: apiBaseUrl,
@@ -14,7 +16,11 @@ const apiClient = axios.create({
 export const fetchLinksAndBacklinks = async (databaseId) => {
   try {
     console.log('Making API call for database:', databaseId);
-    const response = await apiClient.post(`/api/notion/database/${databaseId}/query`);
+
+    // Construct URL with query parameter
+    const url = `?databaseId=${databaseId}`;
+
+    const response = await apiClient.post(url);
     console.log('API Response:', response.data);
     return response.data;
   } catch (error) {
