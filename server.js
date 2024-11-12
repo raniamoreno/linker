@@ -3,13 +3,15 @@ const cors = require('cors');
 const fetch = require('node-fetch');
 const dotenv = require('dotenv');
 
-dotenv.config();
+// Load environment variables from .env.local
+dotenv.config({ path: '.env.local' });
 
 const app = express();
 
+// Update CORS configuration
 app.use(cors({
-  origin: '/api/notion',
-  methods: ['GET', 'POST'],
+  origin: ['http://localhost:3000', 'https://linker-1lie5jjb7-as-projects-7a5e8de7.vercel.app'],
+  methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
@@ -82,10 +84,15 @@ function findLinksInBlocks(blocks) {
 
 app.post('/api/notion/database/:databaseId/query', async (req, res) => {
   try {
-    const token = process.env.REACT_APP_NOTION_TOKEN;
-    const databaseId = req.params.databaseId;
+    // Use NOTION_TOKEN instead of REACT_APP_NOTION_TOKEN
+    const token = process.env.NOTION_TOKEN || process.env.REACT_APP_NOTION_TOKEN;
+    if (!token) {
+      throw new Error('Notion token not found in environment variables');
+    }
 
+    const databaseId = req.params.databaseId;
     console.log('\n1. Starting database query for:', databaseId);
+    console.log('Using token starting with:', token.substring(0, 10));
 
     // Fetch all pages in the database
     const notionResponse = await fetch(
@@ -197,12 +204,14 @@ app.post('/api/notion/database/:databaseId/query', async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 3001;
+const PORT = 3001;  // Fixed port number
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log('Environment check:', {
-    hasToken: !!process.env.REACT_APP_NOTION_TOKEN,
-    tokenStart: process.env.REACT_APP_NOTION_TOKEN?.substring(0, 10),
-    databaseId: process.env.REACT_APP_NOTION_DATABASE_ID
+    hasToken: !!process.env.NOTION_TOKEN,
+    hasReactToken: !!process.env.REACT_APP_NOTION_TOKEN,
+    tokenStart: (process.env.NOTION_TOKEN || process.env.REACT_APP_NOTION_TOKEN)?.substring(0, 10),
+    databaseId: process.env.REACT_APP_NOTION_DATABASE_ID,
+    nodeEnv: process.env.NODE_ENV
   });
 });
