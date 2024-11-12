@@ -1,18 +1,11 @@
 import axios from 'axios';
 
-const getApiBaseUrl = () => {
-  // For Vercel deployment
-  if (process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL}/api/notion`;
-  }
-  // For local development
-  return process.env.NODE_ENV === 'production'
-    ? '/api/notion'
-    : 'http://localhost:3000/api/notion';
-};
+const apiBaseUrl = '/api/notion';
+
+console.log('API Base URL:', apiBaseUrl);
 
 const apiClient = axios.create({
-  baseURL: getApiBaseUrl(),
+  baseURL: apiBaseUrl,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -24,6 +17,7 @@ export const fetchLinksAndBacklinks = async (databaseId) => {
     const response = await apiClient.post('', null, {
       params: { databaseId }
     });
+    console.log('API Response:', response.data);
     return response.data;
   } catch (error) {
     console.error("Error fetching data:", error.response?.data || error.message);

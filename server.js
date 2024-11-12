@@ -3,8 +3,8 @@ const cors = require('cors');
 const fetch = require('node-fetch');
 const dotenv = require('dotenv');
 
-// Load environment variables from .env.local
-dotenv.config({ path: '.env.local' });
+// Load environment variables from .env.development
+dotenv.config({ path: '.env.development' });
 
 const app = express();
 

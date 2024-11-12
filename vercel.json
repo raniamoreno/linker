@@ -5,13 +5,24 @@
       "src": "package.json",
       "use": "@vercel/static-build",
       "config": { "distDir": "build" }
+    },
+    {
+      "src": "api/**/*.js",
+      "use": "@vercel/node"
     }
   ],
   "routes": [
     {
       "src": "/api/notion",
-      "methods": ["POST", "OPTIONS"],
-      "dest": "/api/notion/index.js"
+      "dest": "/api/notion/index.js",
+      "methods": ["POST", "OPTIONS"]
+    },
+    {
+      "src": "/static/(.*)",
+      "dest": "/static/$1",
+      "headers": {
+        "cache-control": "public, max-age=31536000, immutable"
+      }
     },
     {
       "src": "/(.*)",

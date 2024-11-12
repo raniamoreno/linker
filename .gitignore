@@ -5,7 +5,7 @@ logs
 **/*.backup.*
 **/*.back.*
 .env
-.env.local
+.env.development
 .env.development
 .env.production
 .env.development.local

@@ -1,40 +1,38 @@
 {
-  "name": "notion-graph-view",
+  "name": "linker",
   "version": "1.0.0",
-  "description": "",
-  "keywords": [],
-  "main": "src/index.tsx",
+  "private": true,
   "dependencies": {
-    "@notionhq/client": "^2.2.15",
-    "@vercel/node": "^2.10.3",
-    "axios": "^1.7.7",
-    "cors": "^2.8.5",
-    "dotenv": "^16.4.5",
-    "express": "^4.21.1",
-    "http-proxy-middleware": "^3.0.3",
-    "node-fetch": "^2.7.0",
-    "react": "^18.0.0",
-    "react-dom": "^18.0.0",
+    "@notionhq/client": "^2.2.13",
+    "axios": "^1.6.2",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
     "react-flow-renderer": "^10.3.17",
-    "react-scripts": "^5.0.1",
-    "reactflow": "11.11.4"
-  },
-  "devDependencies": {
-    "@types/react": "18.2.38",
-    "@types/react-dom": "18.2.15",
-    "loader-utils": "3.2.1",
-    "typescript": "4.4.4"
+    "reactflow": "^11.10.1",
+    "react-scripts": "5.0.1"
   },
   "scripts": {
+    "dev": "react-scripts start",
+    "build": "CI=false react-scripts build",
     "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test --env=jsdom",
+    "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
-  "browserslist": [
-    ">0.2%",
-    "not dead",
-    "not ie <= 11",
-    "not op_mini all"
-  ]
+  "eslintConfig": {
+    "extends": [
+      "react-app"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
 }
