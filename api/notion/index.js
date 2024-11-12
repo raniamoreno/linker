@@ -18,37 +18,47 @@ export default async function handler(req, res) {
   }
 
   try {
+    // Get databaseId from query parameters
+    const databaseId = req.query.databaseId;
+    console.log('Processing request for database:', databaseId);
+
     const notion = new Client({
       auth: process.env.NOTION_TOKEN
     });
 
-    const databaseId = req.query.databaseId;
-    console.log('Fetching database:', databaseId);
-
-    // Get all pages from database
+    // Fetch all pages in the database
     const pages = await notion.databases.query({
       database_id: databaseId,
       page_size: 100
     });
 
-    // Process each page to get title and content
-    const pagesWithLinks = await Promise.all(pages.results.map(async (page) => {
-      // Get page title
+    // Process pages to get their titles
+    const processedPages = pages.results.map(page => {
       let title = 'Untitled';
       for (const [key, value] of Object.entries(page.properties)) {
-        if (value.type === 'title' && value.title?.[0]?.plain_text) {
-          title = value.title[0].plain_text;
+        if (value.type === 'title' && value.title?.[0]?.text?.content) {
+          title = value.title[0].text.content;
           break;
         }
       }
+      return {
+        id: page.id,
+        title,
+        url: page.url
+      };
+    });
 
-      // Get page content (blocks)
+    // Create a map for quick lookups
+    const pageMap = new Map(processedPages.map(page => [page.id, page]));
+
+    // Fetch content and find links for each page
+    const pagesWithLinks = await Promise.all(processedPages.map(async (page) => {
       const blocks = await notion.blocks.children.list({
         block_id: page.id,
         page_size: 100
       });
 
-      // Find links in blocks
+      // Find links in content
       const links = blocks.results
         .filter(block =>
           block.type === 'link_to_page' ||
@@ -62,29 +72,32 @@ export default async function handler(req, res) {
             return match ? match[1] : null;
           }
         })
-        .filter(Boolean);
+        .filter(Boolean)
+        .filter(linkId => pageMap.has(linkId));
 
       return {
-        id: page.id,
-        title,
-        links: [...new Set(links)] // Remove duplicates
+        ...page,
+        links: [...new Set(links)]
       };
     }));
 
     // Calculate backlinks
-    const results = pagesWithLinks.map(page => ({
+    const pagesWithBacklinks = pagesWithLinks.map(page => ({
       ...page,
+      links: page.links,
       backlinks: pagesWithLinks
         .filter(p => p.links.includes(page.id))
         .map(p => p.id)
     }));
 
-    console.log('API Response:', {
-      pageCount: results.length,
-      samplePage: results[0]
+    console.log('Response summary:', {
+      totalPages: pagesWithBacklinks.length,
+      totalLinks: pagesWithBacklinks.reduce((sum, page) => sum + page.links.length, 0)
     });
 
-    res.status(200).json({ results });
+    res.status(200).json({
+      results: pagesWithBacklinks
+    });
   } catch (error) {
     console.error('API Error:', error);
     res.status(500).json({ error: error.message });
