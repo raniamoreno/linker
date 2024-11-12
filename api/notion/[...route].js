@@ -4,33 +4,37 @@ import fetch from 'node-fetch';
 const NOTION_API_BASE = 'https://api.notion.com/v1';
 
 export default async function handler(req, res) {
+  // Log incoming request
+  console.log('Request:', {
+    method: req.method,
+    url: req.url,
+    query: req.query,
+    body: req.body
+  });
+
+  // CORS Headers
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+  // Handle OPTIONS preflight request
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
   try {
-    // CORS headers
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    // Get database ID from the path
+    const urlParts = req.url.split('/');
+    const databaseId = urlParts[urlParts.indexOf('database') + 1];
 
-    if (req.method === 'OPTIONS') {
-      return res.status(200).end();
-    }
-
-    // Extract databaseId from the URL path
-    const pathParts = req.url.split('/');
-    const databaseId = pathParts[pathParts.length - 2]; // Get second to last part
+    console.log('Processing request for database:', databaseId);
 
     const token = process.env.NOTION_TOKEN;
-
-    console.log('API Called with:', {
-      url: req.url,
-      databaseId,
-      hasToken: !!token,
-      method: req.method
-    });
-
     if (!token) {
-      throw new Error('Notion token not found');
+      throw new Error('Notion token not found in environment');
     }
 
+    // Make request to Notion API
     const notionResponse = await fetch(
       `${NOTION_API_BASE}/databases/${databaseId}/query`,
       {
@@ -53,7 +57,7 @@ export default async function handler(req, res) {
       return res.status(notionResponse.status).json(data);
     }
 
-    // Process pages basic info
+    // Process the response
     const pages = data.results.map(page => {
       let title;
       for (const [key, value] of Object.entries(page.properties)) {
@@ -70,28 +74,25 @@ export default async function handler(req, res) {
       };
     });
 
-    // Create a map for quick lookups
-    const pageMap = new Map(pages.map(page => [page.id, page]));
-
-    // Return processed data
-    const result = {
+    // Create the response
+    const response = {
       results: pages.map(page => ({
         ...page,
-        links: [],  // We'll add page links later
-        backlinks: []  // We'll calculate backlinks later
+        links: [],
+        backlinks: []
       })),
       debug: {
-        totalPages: pages.length,
-        requestUrl: req.url,
-        databaseId
+        totalPages: pages.length
       }
     };
 
-    console.log('Returning result:', result);
-    return res.status(200).json(result);
+    return res.status(200).json(response);
 
   } catch (error) {
-    console.error('Server error:', error);
-    return res.status(500).json({ error: error.message });
+    console.error('API error:', error);
+    return res.status(500).json({
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 }
