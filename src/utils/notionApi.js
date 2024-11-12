@@ -1,12 +1,7 @@
-// src/utils/notionApi.js
 import axios from 'axios';
 
-const apiBaseUrl = process.env.NODE_ENV === 'production'
-  ? '/api/notion'
-  : 'http://localhost:3001/api/notion';
-
 const apiClient = axios.create({
-  baseURL: apiBaseUrl,
+  baseURL: process.env.NODE_ENV === 'production' ? '/api/notion' : 'http://localhost:3001/api/notion',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -16,14 +11,18 @@ export const fetchLinksAndBacklinks = async (databaseId) => {
   try {
     console.log('Fetching data for database:', databaseId);
 
-    // Pass databaseId as a query parameter
     const response = await apiClient.post('', null, {
       params: { databaseId }
     });
 
+    if (!response.data || !response.data.results) {
+      throw new Error('Invalid API response format');
+    }
+
     console.log('API Response:', {
-      totalPages: response.data?.results?.length,
-      samplePage: response.data?.results?.[0]
+      totalPages: response.data.results.length,
+      sampleLinks: response.data.results[0]?.links,
+      sampleBacklinks: response.data.results[0]?.backlinks
     });
 
     return response.data;
