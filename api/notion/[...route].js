@@ -1,5 +1,3 @@
-import { createServer } from 'http';
-import { parse } from 'url';
 import fetch from 'node-fetch';
 
 const NOTION_API_BASE = 'https://api.notion.com/v1';
@@ -66,15 +64,19 @@ function findLinksInBlocks(blocks) {
 }
 
 export default async function handler(req, res) {
-  // Add CORS headers
+  // Handle CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
-  // Handle OPTIONS request
+  // Handle preflight request
   if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
+    return res.status(200).end();
+  }
+
+  // Only allow POST method
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
@@ -84,8 +86,12 @@ export default async function handler(req, res) {
     }
 
     const { databaseId } = req.query;
+    if (!databaseId) {
+      throw new Error('Database ID is required');
+    }
 
-    // Fetch all pages in the database
+    console.log('Processing request for database:', databaseId);
+
     const notionResponse = await fetch(
       `${NOTION_API_BASE}/databases/${databaseId}/query`,
       {
@@ -101,13 +107,14 @@ export default async function handler(req, res) {
       }
     );
 
-    const data = await notionResponse.json();
-
     if (!notionResponse.ok) {
-      throw new Error(`Failed to fetch database: ${JSON.stringify(data)}`);
+      const error = await notionResponse.text();
+      throw new Error(`Notion API error: ${error}`);
     }
 
-    // Process pages
+    const data = await notionResponse.json();
+
+    // Process pages basic info
     const pages = data.results.map(page => {
       let title;
       for (const [key, value] of Object.entries(page.properties)) {
@@ -124,13 +131,21 @@ export default async function handler(req, res) {
       };
     });
 
+    // Create a map for quick lookups
     const pageMap = new Map(pages.map(page => [page.id, page]));
 
-    // Fetch references
+    // Fetch content and references for each page
+    console.log('Fetching page contents and references...');
     const pagesWithRefs = await Promise.all(pages.map(async (page) => {
+      console.log(`Processing "${page.title}" (${page.id})`);
+
       const blocks = await fetchPageReferences(page.id, token);
+      console.log(`Found ${blocks.length} blocks`);
+
       const links = findLinksInBlocks(blocks);
       const validLinks = links.filter(linkId => pageMap.has(linkId));
+
+      console.log(`Found ${validLinks.length} valid links`);
 
       return {
         ...page,
@@ -151,7 +166,14 @@ export default async function handler(req, res) {
       };
     });
 
-    return res.json({
+    // Log summary
+    console.log('Summary:', {
+      totalPages: pagesWithBacklinks.length,
+      totalLinks: pagesWithBacklinks.reduce((sum, page) => sum + page.links.length, 0),
+      totalBacklinks: pagesWithBacklinks.reduce((sum, page) => sum + page.backlinks.length, 0)
+    });
+
+    return res.status(200).json({
       results: pagesWithBacklinks,
       debug: {
         totalPages: pagesWithBacklinks.length,

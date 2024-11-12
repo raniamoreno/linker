@@ -5,18 +5,18 @@
   "keywords": [],
   "main": "src/index.tsx",
   "dependencies": {
+    "@vercel/node": "^2.10.3",
     "axios": "^1.7.7",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.21.1",
     "http-proxy-middleware": "^3.0.3",
+    "node-fetch": "^2.7.0",
     "react": "^18.0.0",
     "react-dom": "^18.0.0",
     "react-flow-renderer": "^10.3.17",
-    "react-scripts": "^5.0.0",
-    "reactflow": "11.11.4",
-    "node-fetch": "^3.3.1",
-    "@vercel/node": "^2.15.1"
+    "react-scripts": "^5.0.1",
+    "reactflow": "11.11.4"
   },
   "devDependencies": {
     "@types/react": "18.2.38",
