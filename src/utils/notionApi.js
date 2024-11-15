@@ -9,11 +9,13 @@ const apiClient = axios.create({
 
 export const fetchDatabases = async () => {
   try {
+    console.log('Fetching databases...');
     const response = await apiClient.get('');
+    console.log('Received databases:', response.data.databases);
     return response.data.databases;
   } catch (error) {
     console.error("Error fetching databases:", error);
-    throw error;
+    throw new Error(`Failed to fetch databases: ${error.message}`);
   }
 };
 
@@ -26,18 +28,23 @@ export const fetchLinksAndBacklinks = async (databaseId) => {
     });
 
     if (!response.data || !response.data.results) {
+      console.error('Invalid API response:', response.data);
       throw new Error('Invalid API response format');
     }
 
+    const data = response.data;
     console.log('API Response:', {
-      totalPages: response.data.results.length,
-      sampleLinks: response.data.results[0]?.links,
-      sampleBacklinks: response.data.results[0]?.backlinks
+      totalPages: data.results.length,
+      firstPage: data.results[0] ? {
+        title: data.results[0].title,
+        links: data.results[0].links.length,
+        backlinks: data.results[0].backlinks.length
+      } : null
     });
 
-    return response.data;
+    return data;
   } catch (error) {
     console.error("Error fetching data:", error);
-    throw error;
+    throw new Error(`Failed to fetch graph data: ${error.message}`);
   }
 };

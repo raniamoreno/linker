@@ -18,14 +18,39 @@ function GraphView() {
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [error, setError] = useState(null);
   const [selectedDatabase, setSelectedDatabase] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const style = {
+    container: {
+      width: '100vw',
+      height: '100vh',
+      position: 'relative',
+      backgroundColor: '#f0f0f0'
+    },
+    loadingOverlay: {
+      position: 'absolute',
+      top: '50%',
+      left: '50%',
+      transform: 'translate(-50%, -50%)',
+      padding: '20px',
+      backgroundColor: 'white',
+      borderRadius: '8px',
+      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+      zIndex: 999
+    }
+  };
 
   useEffect(() => {
     const fetchData = async () => {
       if (!selectedDatabase) return;
 
       try {
+        console.log('Fetching data for database:', selectedDatabase);
+        setLoading(true);
+        setError(null);
+
         const data = await fetchLinksAndBacklinks(selectedDatabase);
-        console.log('Fetched data:', data);
+        console.log('Received data:', data);
 
         if (!data.results || !Array.isArray(data.results)) {
           throw new Error('Invalid data format received from API');
@@ -35,26 +60,26 @@ function GraphView() {
         const pagesWithConnections = data.results.filter(
           page => page.links.length > 0 || page.backlinks.length > 0
         );
+        console.log('Filtered pages:', pagesWithConnections.length);
 
         // Create nodes with circle layout
-        const nodeRadius = Math.min(window.innerWidth, window.innerHeight) * 0.4;
+        const nodeRadius = Math.min(window.innerWidth, window.innerHeight) * 0.3;
         const centerX = window.innerWidth / 2;
         const centerY = window.innerHeight / 2;
 
         const nodes = pagesWithConnections.map((page, index) => {
           const angle = (index / pagesWithConnections.length) * 2 * Math.PI;
+          const x = centerX + nodeRadius * Math.cos(angle);
+          const y = centerY + nodeRadius * Math.sin(angle);
+
+          console.log(`Creating node for ${page.title} at (${x}, ${y})`);
+
           return {
             id: page.id,
-            type: 'default',
             data: {
-              label: `${page.title}\n(out: ${page.links.length}, in: ${page.backlinks.length})`,
-              outgoingLinks: page.links.length,
-              incomingLinks: page.backlinks.length
+              label: `${page.title}\n(out: ${page.links.length}, in: ${page.backlinks.length})`
             },
-            position: {
-              x: centerX + nodeRadius * Math.cos(angle),
-              y: centerY + nodeRadius * Math.sin(angle)
-            },
+            position: { x, y },
             style: {
               background: '#fff',
               border: '1px solid #999',
@@ -63,17 +88,15 @@ function GraphView() {
               fontSize: '12px',
               width: 'auto',
               minWidth: '150px',
-              textAlign: 'center',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+              textAlign: 'center'
             }
           };
         });
 
-        // Create edges only between filtered nodes
+        // Create edges
         const edges = [];
         pagesWithConnections.forEach(page => {
           page.links.forEach(targetId => {
-            // Only create edge if target exists in filtered nodes
             if (pagesWithConnections.some(p => p.id === targetId)) {
               edges.push({
                 id: `${page.id}-${targetId}`,
@@ -82,54 +105,51 @@ function GraphView() {
                 type: 'smoothstep',
                 animated: true,
                 markerEnd: {
-                  type: MarkerType.ArrowClosed,
-                  width: 20,
-                  height: 20,
-                  color: '#555'
-                },
-                style: {
-                  stroke: '#555',
-                  strokeWidth: 2
+                  type: MarkerType.ArrowClosed
                 }
               });
             }
           });
         });
 
+        console.log(`Created ${nodes.length} nodes and ${edges.length} edges`);
+
         setNodes(nodes);
         setEdges(edges);
       } catch (error) {
         console.error('Error in GraphView:', error);
         setError(error.message);
+      } finally {
+        setLoading(false);
       }
     };
 
     fetchData();
   }, [selectedDatabase, setNodes, setEdges]);
 
-  const onConnect = useCallback((params) => {
-    setEdges(eds => addEdge({
-      ...params,
-      type: 'smoothstep',
-      animated: true,
-      markerEnd: {
-        type: MarkerType.ArrowClosed
-      }
-    }, eds));
-  }, [setEdges]);
+  const onConnect = useCallback(
+    (params) => setEdges((eds) => addEdge(params, eds)),
+    [setEdges]
+  );
 
   if (error) {
     return (
-      <div className="p-4 text-red-500 text-center">
+      <div style={{
+        padding: '20px',
+        color: 'red',
+        textAlign: 'center'
+      }}>
         Error: {error}
       </div>
     );
   }
 
   return (
-    <div className="w-screen h-screen relative">
-      <ReactFlowProvider>
-        <DatabaseSelector onDatabaseSelect={setSelectedDatabase} />
+    <div style={style.container}>
+      <DatabaseSelector onDatabaseSelect={setSelectedDatabase} />
+      {loading ? (
+        <div style={style.loadingOverlay}>Loading graph data...</div>
+      ) : (
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -139,25 +159,21 @@ function GraphView() {
           fitView
           minZoom={0.1}
           maxZoom={1.5}
-          defaultEdgeOptions={{
-            type: 'smoothstep',
-            animated: true,
-            markerEnd: {
-              type: MarkerType.ArrowClosed
-            }
-          }}
         >
-          <Background color="#aaa" gap={16} />
+          <Background />
           <Controls />
-          <MiniMap
-            nodeStrokeColor={(n) => n.style?.border || '#555'}
-            nodeColor={(n) => n.style?.background || '#fff'}
-            nodeBorderRadius={3}
-          />
+          <MiniMap />
         </ReactFlow>
-      </ReactFlowProvider>
+      )}
     </div>
   );
 }
 
-export default GraphView;
+// Wrap with ReactFlowProvider
+const GraphViewWrapper = () => (
+  <ReactFlowProvider>
+    <GraphView />
+  </ReactFlowProvider>
+);
+
+export default GraphViewWrapper;
