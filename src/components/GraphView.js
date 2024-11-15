@@ -11,29 +11,38 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { fetchLinksAndBacklinks } from '../utils/notionApi';
+import DatabaseSelector from './DatabaseSelector';
 
-function GraphView({ databaseId }) {
+function GraphView() {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [error, setError] = useState(null);
+  const [selectedDatabase, setSelectedDatabase] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
+      if (!selectedDatabase) return;
+
       try {
-        const data = await fetchLinksAndBacklinks(databaseId);
+        const data = await fetchLinksAndBacklinks(selectedDatabase);
         console.log('Fetched data:', data);
 
         if (!data.results || !Array.isArray(data.results)) {
           throw new Error('Invalid data format received from API');
         }
 
+        // Filter pages to only include those with links or backlinks
+        const pagesWithConnections = data.results.filter(
+          page => page.links.length > 0 || page.backlinks.length > 0
+        );
+
         // Create nodes with circle layout
         const nodeRadius = Math.min(window.innerWidth, window.innerHeight) * 0.4;
         const centerX = window.innerWidth / 2;
         const centerY = window.innerHeight / 2;
 
-        const nodes = data.results.map((page, index) => {
-          const angle = (index / data.results.length) * 2 * Math.PI;
+        const nodes = pagesWithConnections.map((page, index) => {
+          const angle = (index / pagesWithConnections.length) * 2 * Math.PI;
           return {
             id: page.id,
             type: 'default',
@@ -60,32 +69,32 @@ function GraphView({ databaseId }) {
           };
         });
 
-        // Create edges
+        // Create edges only between filtered nodes
         const edges = [];
-        data.results.forEach(page => {
+        pagesWithConnections.forEach(page => {
           page.links.forEach(targetId => {
-            edges.push({
-              id: `${page.id}-${targetId}`,
-              source: page.id,
-              target: targetId,
-              type: 'smoothstep',
-              animated: true,
-              markerEnd: {
-                type: MarkerType.ArrowClosed,
-                width: 20,
-                height: 20,
-                color: '#555'
-              },
-              style: {
-                stroke: '#555',
-                strokeWidth: 2
-              }
-            });
+            // Only create edge if target exists in filtered nodes
+            if (pagesWithConnections.some(p => p.id === targetId)) {
+              edges.push({
+                id: `${page.id}-${targetId}`,
+                source: page.id,
+                target: targetId,
+                type: 'smoothstep',
+                animated: true,
+                markerEnd: {
+                  type: MarkerType.ArrowClosed,
+                  width: 20,
+                  height: 20,
+                  color: '#555'
+                },
+                style: {
+                  stroke: '#555',
+                  strokeWidth: 2
+                }
+              });
+            }
           });
         });
-
-        console.log('Setting nodes:', nodes.length);
-        console.log('Setting edges:', edges.length);
 
         setNodes(nodes);
         setEdges(edges);
@@ -95,10 +104,8 @@ function GraphView({ databaseId }) {
       }
     };
 
-    if (databaseId) {
-      fetchData();
-    }
-  }, [databaseId, setNodes, setEdges]);
+    fetchData();
+  }, [selectedDatabase, setNodes, setEdges]);
 
   const onConnect = useCallback((params) => {
     setEdges(eds => addEdge({
@@ -113,19 +120,16 @@ function GraphView({ databaseId }) {
 
   if (error) {
     return (
-      <div style={{
-        padding: '20px',
-        color: 'red',
-        textAlign: 'center'
-      }}>
+      <div className="p-4 text-red-500 text-center">
         Error: {error}
       </div>
     );
   }
 
   return (
-    <div style={{ width: '100vw', height: '100vh' }}>
+    <div className="w-screen h-screen relative">
       <ReactFlowProvider>
+        <DatabaseSelector onDatabaseSelect={setSelectedDatabase} />
         <ReactFlow
           nodes={nodes}
           edges={edges}

@@ -67,73 +67,98 @@ export default async function handler(req, res) {
     return;
   }
 
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+  const notion = new Client({
+    auth: process.env.NOTION_TOKEN
+  });
+
+  // Handle GET request for databases
+  if (req.method === 'GET') {
+    try {
+      const response = await notion.search({
+        filter: {
+          property: 'object',
+          value: 'database'
+        }
+      });
+
+      const databases = response.results.map(database => ({
+        id: database.id,
+        title: database.title[0]?.plain_text || 'Untitled Database',
+        icon: database.icon?.emoji || null,
+        created_time: database.created_time
+      }));
+
+      return res.status(200).json({ databases });
+    } catch (error) {
+      console.error('API Error:', error);
+      return res.status(500).json({ error: error.message });
+    }
   }
 
-  try {
-    const { databaseId } = req.query;
-    console.log('Processing database:', databaseId);
+  // Handle POST request for database content
+  if (req.method === 'POST') {
+    try {
+      const { databaseId } = req.query;
+      console.log('Processing database:', databaseId);
 
-    const notion = new Client({
-      auth: process.env.NOTION_TOKEN
-    });
+      // Get all pages from database
+      const response = await notion.databases.query({
+        database_id: databaseId,
+        page_size: 100
+      });
 
-    // Get all pages from database
-    const response = await notion.databases.query({
-      database_id: databaseId,
-      page_size: 100
-    });
+      // Process pages with basic info
+      const pages = await Promise.all(response.results.map(async page => ({
+        id: page.id,
+        title: await getPageTitle(page),
+        url: page.url
+      })));
 
-    // Process pages with basic info
-    const pages = await Promise.all(response.results.map(async page => ({
-      id: page.id,
-      title: await getPageTitle(page),
-      url: page.url
-    })));
+      // Create lookup map
+      const pageMap = new Map(pages.map(page => [page.id, page]));
 
-    // Create lookup map
-    const pageMap = new Map(pages.map(page => [page.id, page]));
+      // Get links for each page
+      const pagesWithRefs = await Promise.all(pages.map(async page => {
+        const links = await getPageLinks(notion, page.id);
+        // Filter links to only include pages from our database
+        const validLinks = links.filter(linkId => pageMap.has(linkId));
 
-    // Get links for each page
-    const pagesWithRefs = await Promise.all(pages.map(async page => {
-      const links = await getPageLinks(notion, page.id);
-      // Filter links to only include pages from our database
-      const validLinks = links.filter(linkId => pageMap.has(linkId));
+        return {
+          ...page,
+          links: validLinks
+        };
+      }));
 
-      return {
-        ...page,
-        links: validLinks
-      };
-    }));
+      // Calculate backlinks
+      const results = pagesWithRefs.map(page => {
+        const backlinks = pagesWithRefs
+          .filter(otherPage => otherPage.links.includes(page.id))
+          .map(otherPage => otherPage.id);
 
-    // Calculate backlinks
-    const results = pagesWithRefs.map(page => {
-      const backlinks = pagesWithRefs
-        .filter(otherPage => otherPage.links.includes(page.id))
-        .map(otherPage => otherPage.id);
+        return {
+          ...page,
+          links: page.links,
+          backlinks
+        };
+      });
 
-      return {
-        ...page,
-        links: page.links,
-        backlinks
-      };
-    });
+      console.log('API Response Summary:', {
+        totalPages: results.length,
+        totalLinks: results.reduce((sum, page) => sum + page.links.length, 0),
+        totalBacklinks: results.reduce((sum, page) => sum + page.backlinks.length, 0),
+        samplePage: {
+          title: results[0]?.title,
+          linksCount: results[0]?.links.length,
+          backlinksCount: results[0]?.backlinks.length
+        }
+      });
 
-    console.log('API Response Summary:', {
-      totalPages: results.length,
-      totalLinks: results.reduce((sum, page) => sum + page.links.length, 0),
-      totalBacklinks: results.reduce((sum, page) => sum + page.backlinks.length, 0),
-      samplePage: {
-        title: results[0]?.title,
-        linksCount: results[0]?.links.length,
-        backlinksCount: results[0]?.backlinks.length
-      }
-    });
-
-    res.status(200).json({ results });
-  } catch (error) {
-    console.error('API Error:', error);
-    res.status(500).json({ error: error.message });
+      return res.status(200).json({ results });
+    } catch (error) {
+      console.error('API Error:', error);
+      return res.status(500).json({ error: error.message });
+    }
   }
+
+  return res.status(405).json({ error: 'Method not allowed' });
 }

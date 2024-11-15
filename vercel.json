@@ -15,7 +15,7 @@
     {
       "src": "/api/notion",
       "dest": "/api/notion/index.js",
-      "methods": ["POST", "OPTIONS"]
+      "methods": ["GET", "POST", "OPTIONS"]
     },
     {
       "src": "/static/(.*)",

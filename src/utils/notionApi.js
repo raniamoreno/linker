@@ -7,6 +7,16 @@ const apiClient = axios.create({
   },
 });
 
+export const fetchDatabases = async () => {
+  try {
+    const response = await apiClient.get('');
+    return response.data.databases;
+  } catch (error) {
+    console.error("Error fetching databases:", error);
+    throw error;
+  }
+};
+
 export const fetchLinksAndBacklinks = async (databaseId) => {
   try {
     console.log('Fetching data for database:', databaseId);
