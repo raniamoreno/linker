@@ -2,12 +2,8 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="cb670921-da62-4edb-b37c-99ffbd8d2c8d" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/api/notion/databases.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/components/DatabaseSelector.js" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/App.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/App.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/components/GraphView.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/GraphView.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/vercel.json" beforeDir="false" afterPath="$PROJECT_DIR$/vercel.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/components/DatabaseSelector.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/DatabaseSelector.js" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -39,7 +35,7 @@
       <option name="presentableId" value="Default" />
       <updated>1731345121474</updated>
       <workItem from="1731345122748" duration="22226000" />
-      <workItem from="1731678062424" duration="721000" />
+      <workItem from="1731678062424" duration="1257000" />
     </task>
     <servers />
   </component>
